@@ -28,6 +28,7 @@ public class SecurityConfig {
                         // 允许对 GET /api/analysis/** 的请求，无需认证 (如果后续分析接口也需要先测试)
                         // .requestMatchers(HttpMethod.GET, "/api/analysis/**").permitAll()
                         // 其他所有请求都需要认证
+                        .requestMatchers(HttpMethod.POST, "/api/analysis/**").permitAll() //  允许所有 /api/analysis/ 下的 POST 请求
                         .anyRequest().authenticated()
                 );
 
