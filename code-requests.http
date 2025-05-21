@@ -1,0 +1,22 @@
+### Upload a Java file
+# @name uploadJavaFile
+POST http://localhost:8080/api/code/upload
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="Test.java"
+Content-Type: text/x-java-source
+
+// 请将以下内容替换为你想要上传的 Test.java 文件的实际内容
+// 或者，你可以使用 < 符号从外部文件加载内容，见下文说明
+
+public class Test {
+    public static void main(String[] args) {
+        System.out.println("Hello from Test.java!");
+    }
+
+    public void anotherMethod() {
+        // Another method
+    }
+}
+--WebAppBoundary--

@@ -1,0 +1,62 @@
+<!DOCTYPE module PUBLIC
+        "-//Puppy Crawl//DTD Check Configuration 1.3//EN"
+        "http://www.puppycrawl.com/dtds/configuration_1_3.dtd">
+<module name="Checker">
+    <property name="charset" value="UTF-8"/>
+
+    <!-- 文件长度不超过 2000 行 -->
+    <module name="FileLength">
+        <property name="max" value="2000"/>
+    </module>
+
+    <!-- Tab 字符检查 -->
+    <module name="FileTabCharacter">
+        <property name="eachLine" value="true"/>
+    </module>
+
+    <module name="TreeWalker">
+        <!-- 检查 import 语句的顺序和分组 -->
+        <module name="CustomImportOrder">
+            <property name="customImportOrderRules" value="STATIC###THIRD_PARTY_PACKAGE###STANDARD_JAVA_PACKAGE###SPECIAL_IMPORTS###SAME_PACKAGE"/>
+            <property name="standardPackageRegExp" value="^java\.|^javax\."/>
+            <property name="specialImportsRegExp" value="^org\.springframework\."/> <!-- 示例：将 Spring 框架的 import 单独分组 -->
+            <property name="sortImportsInGroupAlphabetically" value="true"/>
+            <property name="separateLineBetweenGroups" value="true"/>
+        </module>
+
+        <!-- 避免使用 * 导入 -->
+        <module name="AvoidStarImport"/>
+
+        <!-- 大括号使用规则 -->
+        <module name="LeftCurly"/>
+        <module name="RightCurly"/>
+        <module name="NeedBraces"/> <!-- if, else, for, while, do...while 语句必须使用大括号 -->
+
+        <!-- 空格检查 -->
+        <module name="GenericWhitespace"/> <!-- 泛型尖括号两侧空格 -->
+        <module name="MethodParamPad"/> <!-- 方法参数名与类型间空格 -->
+        <module name="NoWhitespaceAfter"/>
+        <module name="NoWhitespaceBefore"/>
+        <module name="ParenPad"/> <!-- 圆括号内侧空格 -->
+        <module name="TypecastParenPad"/> <!-- 类型转换括号内侧空格 -->
+        <module name="WhitespaceAfter"/> <!-- 逗号、分号、类型转换后需要空格 -->
+        <module name="WhitespaceAround"/> <!-- 操作符两侧需要空格 -->
+
+        <!-- 每行代码长度不超过 120 个字符 -->
+        <module name="LineLength">
+            <property name="max" value="120"/>
+            <property name="ignorePattern" value="^package.*|^import.*|a href|href|http://|https://|ftp://"/>
+        </module>
+
+        <!-- 缩进检查，使用4个空格 -->
+        <module name="Indentation">
+            <property name="basicOffset" value="4"/>
+            <property name="braceAdjustment" value="0"/>
+            <property name="caseIndent" value="4"/>
+            <property name="throwsIndent" value="4"/>
+            <property name="lineWrappingIndentation" value="4"/>
+            <property name="arrayInitIndent" value="4"/>
+        </module>
+
+    </module>
+</module>
