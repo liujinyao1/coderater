@@ -199,7 +199,7 @@ CodeRater 是一个旨在帮助用户分析 Java 代码质量并提供反馈的�
             ```
 
 *   **修改代码文件名 (仅限自己的代码)**
-    *   **URL**: `/api/code/{codeId}/filename`
+    *   **URL**: `/api/code/{codeId}/filename?newFileName=xxx`
     *   **Method**: `PUT`
     *   **Headers**: `Authorization: Bearer <YOUR_JWT_TOKEN>`
     *   **Path Variable**: `codeId` (代码ID)
