@@ -315,23 +315,26 @@ CodeRater 是一个旨在帮助用户分析 Java 代码质量并提供反馈的�
 ## 4. 项目结构
 
 
+
+```
 coderater/
-├── src/main/java/com/se/coderater/ # Java源代码根目录
-│ ├── config/ # 配置类 (SecurityConfig.java, DataInitializer.java - 可选)
-│ ├── controller/ # API 控制器 (AuthController.java, CodeController.java, AnalysisController.java)
-│ ├── dto/ # 数据传输对象 (RegisterRequest.java, LoginRequest.java, AuthResponse.java)
-│ ├── entity/ # JPA 实体类 (User.java, Code.java, Analysis.java)
-│ ├── exception/ # 全局异常处理器 (GlobalExceptionHandler.java)
-│ ├── repository/ # JPA 仓库接口 (UserRepository.java, CodeRepository.java, AnalysisRepository.java)
-│ ├── security/ # Spring Security 相关 (JwtUtils.java, AuthTokenFilter.java, AuthEntryPointJwt.java)
-│ └── service/ # 业务逻辑服务 (AuthService.java, UserDetailsServiceImpl.java, CodeService.java, AnalysisService.java)
+├── src/main/java/com/se/coderater/  # Java源代码根目录
+│   ├── config/                    # 配置类 (SecurityConfig.java, DataInitializer.java - 可选)
+│   ├── controller/                # API 控制器 (AuthController.java, CodeController.java, AnalysisController.java)
+│   ├── dto/                       # 数据传输对象 (RegisterRequest.java, LoginRequest.java, AuthResponse.java)
+│   ├── entity/                    # JPA 实体类 (User.java, Code.java, Analysis.java)
+│   ├── exception/                 # 全局异常处理器 (GlobalExceptionHandler.java)
+│   ├── repository/                # JPA 仓库接口 (UserRepository.java, CodeRepository.java, AnalysisRepository.java)
+│   ├── security/                  # Spring Security 相关 (JwtUtils.java, AuthTokenFilter.java, AuthEntryPointJwt.java)
+│   └── service/                   # 业务逻辑服务 (AuthService.java, UserDetailsServiceImpl.java, CodeService.java, AnalysisService.java)
 ├── src/main/resources/
-│ ├── static/ # 静态资源 (如果需要)
-│ ├── templates/ # 视图模板 (如果需要)
-│ ├── application.properties # Spring Boot 配置文件
-│ └── checkstyle.xml # Checkstyle 规则配置文件
-├── pom.xml # Maven 项目配置文件
-└── README.md # 本文档
+│   ├── static/                    # 静态资源 (如果需要)
+│   ├── templates/                 # 视图模板 (如果需要)
+│   ├── application.properties     # Spring Boot 配置文件
+│   └── checkstyle.xml             # Checkstyle 规则配置文件
+├── pom.xml                        # Maven 项目配置文件
+└── README.md                      # 本文档
+```
 
 ## 5. Checkstyle 配置
 
