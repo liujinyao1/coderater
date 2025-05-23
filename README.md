@@ -202,7 +202,7 @@ CodeRater 是一个旨在帮助用户分析 Java 代码质量并提供反馈的�
           "classCount": 1,
           "methodCount": 2,
           "lineCount": 8,
-          "uploader": null // 通常 @JsonBackReference 会阻止序列化，或只显示ID
+          "uploader": null // 通常 @JsonBackReference 会阻止序列化（即没有这一行），或只显示ID
         }
         ```
     *   **Error Responses**: `400 Bad Request`, `401 Unauthorized`.
