@@ -246,8 +246,8 @@ CodeRater 是一个旨在帮助用户分析 Java 代码质量并提供反馈的�
            "methodCount": 0,
            "lineCount": 3
         }
-       ```
-*   **Error Responses**: `401 Unauthorized`, `403 Forbidden` (非代码所有者), `404 Not Found` (代码不存在),`500 Internal Server Error`(服务器内部错误,例如,重新解析新代码内容时发生意外）
+        ```
+    *   **Error Responses**: `401 Unauthorized`, `403 Forbidden` (非代码所有者), `404 Not Found` (代码不存在),`500 Internal Server Error`(服务器内部错误,例如,重新解析新代码内容时发生意外）
 *   **删除代码 (仅限自己的代码)**
     *   **URL**: `/api/code/{codeId}`
     *   **Method**: `DELETE`
