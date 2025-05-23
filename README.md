@@ -2,11 +2,14 @@
 
 ## 1. 项目概述
 
-CodeRater 是一个旨在帮助用户分析 Java 代码质量并提供反馈的工具。后端系统提供 RESTful API，支持代码上传、代码结构解析、代码风格检查、复杂度分析、注释情况评估，并最终给出一个综合评分。
+CodeRater 是一个旨在帮助用户分析 Java 代码质量并提供反馈的工具。后端系统提供 RESTful API，支持用户认证、代码上传与管理、代码结构解析、代码风格检查、复杂度分析、注释情况评估，并最终给出一个综合评分。
 
 **核心功能:**
 
-*   **代码上传与解析**: 用户可以上传 `.java` 文件，系统将解析其基本结构（类、方法、行数）。
+*   **用户认证与管理**:
+    *   用户注册与登录 (基于 JWT)。
+    *   用户可以管理自己上传的代码。
+*   **代码上传与解析**: 认证用户可以上传 `.java` 文件，系统将解析其基本结构（类、方法、行数）并与用户关联。
 *   **代码质量分析**:
     *   **代码风格检查**: 使用 Checkstyle 根据预设规则（基于 Google Java Style）检查代码规范性。
     *   **复杂度分析**: 计算方法的平均圈复杂度。
@@ -18,11 +21,12 @@ CodeRater 是一个旨在帮助用户分析 Java 代码质量并提供反馈的�
 *   Java 17
 *   Spring Boot 3.x
 *   Spring Data JPA
-*   Spring Security (基础配置，JWT待集成)
+*   Spring Security (JWT 认证)
 *   MySQL 8.0
 *   Maven
 *   JavaParser (用于代码结构解析、复杂度及注释分析)
 *   Checkstyle (用于代码风格检查)
+*   jjwt (Java JWT library)
 
 ## 2. 环境准备与运行
 
@@ -50,6 +54,10 @@ CodeRater 是一个旨在帮助用户分析 Java 代码质量并提供反馈的�
         spring.datasource.url=jdbc:mysql://localhost:3306/coderater_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
         spring.datasource.username=your_mysql_username # 替换为你的MySQL用户名
         spring.datasource.password=your_mysql_password # 替换为你的MySQL密码
+
+        # JWT 配置 (请确保替换为安全的密钥，至少64字节长)
+        jwt.secret=YourSuperLongAndVeryVeryVerySecureSecretKeyForHS512AlgorithmAtLeast64BytesLong
+        jwt.expiration.ms=86400000 # 24 hours in milliseconds
         ```
 3.  **Maven 依赖**:
     项目使用 Maven 管理依赖。首次运行时，IDE 或 Maven 会自动下载所需依赖。
@@ -65,50 +73,176 @@ CodeRater 是一个旨在帮助用户分析 Java 代码质量并提供反馈的�
 
 ## 3. API 接口文档
 
-### 3.1 代码上传与解析
+**认证相关的请求头**: 对于需要认证的接口，请在请求头中添加 `Authorization` 字段，值为 `Bearer <YOUR_JWT_TOKEN>`。
 
-*   **URL**: `/api/code/upload`
-*   **Method**: `POST`
-*   **Content-Type**: `multipart/form-data`
-*   **Request Body**:
-    *   `file`: (类型: File) 需要上传的 `.java` 文件。
-*   **Success Response (201 Created)**:
-    ```json
-    {
-      "id": 1, // 代码记录在数据库中的ID
-      "fileName": "Test.java", // 上传的文件名
-      "content": "public class Test {\n    // ... (文件内容) ... \n}", // 文件内容
-      "uploadedAt": "2025-05-21T13:40:42.0918616", // 上传时间
-      "classCount": 1,  // 代码中类的数量 (通过JavaParser解析)
-      "methodCount": 2, // 代码中方法的数量 (通过JavaParser解析)
-      "lineCount": 8    // 代码中非空行的数量 (通过JavaParser解析)
-    }
-    ```
-*   **Error Responses**:
-    *   `400 Bad Request`: 如果文件为空、不是 `.java` 文件、或请求格式错误。
+### 3.1 用户认证
+
+*   **用户注册**
+    *   **URL**: `/api/auth/register`
+    *   **Method**: `POST`
+    *   **Content-Type**: `application/json`
+    *   **Request Body**:
         ```json
         {
-          "error": "Invalid file.",
-          "message": "Only .java files are allowed."
+          "username": "testuser",
+          "email": "test@example.com",
+          "password": "password123"
         }
         ```
-    *   `500 Internal Server Error`: 如果服务器内部处理错误。
+    *   **Success Response (200 OK)**:
+        ```json
+        {
+          "message": "User registered successfully!",
+          "accessToken": null
+        }
+        ```
+    *   **Error Responses**:
+        *   `400 Bad Request`: 用户名/邮箱已存在，或输入不合法 (包含详细校验错误信息)。
+            ```json
+            {
+                "timestamp": 1678886400000,
+                "status": 400,
+                "errors": {
+                    "password": "Password must be between 6 and 40 characters",
+                    "username": "Username must be between 3 and 20 characters",
+                    "email": "Email should be valid"
+                },
+                "message": "Validation failed"
+            }
+            ```
 
-### 3.2 代码质量分析与评分
+*   **用户登录**
+    *   **URL**: `/api/auth/login`
+    *   **Method**: `POST`
+    *   **Content-Type**: `application/json`
+    *   **Request Body**:
+        ```json
+        {
+          "username": "testuser",
+          "password": "password123"
+        }
+        ```
+    *   **Success Response (200 OK)**:
+        ```json
+        {
+          "message": "User logged in successfully!",
+          "accessToken": "your_jwt_token_here" // JWT Token
+        }
+        ```
+    *   **Error Responses**:
+        *   `401 Unauthorized`: 用户名或密码错误。
+            ```json
+            {
+                "message": "Error: Invalid username or password",
+                "accessToken": null
+            }
+            ```
+
+### 3.2 代码管理 (需要认证)
+
+*   **上传代码**
+    *   **URL**: `/api/code/upload`
+    *   **Method**: `POST`
+    *   **Headers**: `Authorization: Bearer <YOUR_JWT_TOKEN>`
+    *   **Content-Type**: `multipart/form-data`
+    *   **Request Body**:
+        *   `file`: (类型: File) 需要上传的 `.java` 文件。
+    *   **Success Response (201 Created)**:
+        ```json
+        {
+          "id": 1,
+          "fileName": "Test.java",
+          "content": "public class Test {\n    // ... \n}",
+          "uploadedAt": "2025-05-21T13:40:42.0918616",
+          "classCount": 1,
+          "methodCount": 2,
+          "lineCount": 8
+          // "uploader" 字段通常不会在此完整序列化以避免循环，但代码已与用户关联
+        }
+        ```
+    *   **Error Responses**:
+        *   `400 Bad Request`: 文件无效。
+        *   `401 Unauthorized`: 未认证或认证失败。
+
+*   **获取当前用户上传的所有代码**
+    *   **URL**: `/api/code/mycode`
+    *   **Method**: `GET`
+    *   **Headers**: `Authorization: Bearer <YOUR_JWT_TOKEN>`
+    *   **Success Response (200 OK)**: 返回一个包含用户所有 `Code` 对象的 JSON 数组，或者提示用户尚未上传代码。
+        ```json
+        [
+          { "id": 1, "fileName": "Test1.java", "classCount": 1, ... },
+          { "id": 2, "fileName": "Test2.java", "classCount": 2, ... }
+        ]
+        ```
+        或者 (如果无代码):
+        ```json
+        "You have not uploaded any code yet."
+        ```
+    *   **Error Responses**:
+        *   `401 Unauthorized`: 未认证。
+
+*   **获取当前用户指定的代码详情**
+    *   **URL**: `/api/code/{codeId}`
+    *   **Method**: `GET`
+    *   **Headers**: `Authorization: Bearer <YOUR_JWT_TOKEN>`
+    *   **Path Variable**: `codeId` (代码ID)
+    *   **Success Response (200 OK)**: 返回指定 `codeId` 的 `Code` 对象。
+    *   **Error Responses**:
+        *   `401 Unauthorized`: 未认证。
+        *   `404 Not Found`: 代码不存在或不属于当前用户。
+            ```json
+            {
+              "error": "Not Found",
+              "message": "Code not found or you do not have permission to view it."
+            }
+            ```
+
+*   **修改代码文件名 (仅限自己的代码)**
+    *   **URL**: `/api/code/{codeId}/filename`
+    *   **Method**: `PUT`
+    *   **Headers**: `Authorization: Bearer <YOUR_JWT_TOKEN>`
+    *   **Path Variable**: `codeId` (代码ID)
+    *   **Request Parameter**: `newFileName` (新的文件名，例如 `UpdatedName.java`)
+    *   **Success Response (200 OK)**: 返回更新后的 `Code` 对象。
+    *   **Error Responses**:
+        *   `400 Bad Request`: 新文件名无效。
+        *   `401 Unauthorized`: 未认证。
+        *   `403 Forbidden`: 尝试修改不属于自己的代码。
+        *   `404 Not Found`: 代码不存在。
+
+*   **删除代码 (仅限自己的代码)**
+    *   **URL**: `/api/code/{codeId}`
+    *   **Method**: `DELETE`
+    *   **Headers**: `Authorization: Bearer <YOUR_JWT_TOKEN>`
+    *   **Path Variable**: `codeId` (代码ID)
+    *   **Success Response (200 OK or 204 No Content)**:
+        ```json
+        {
+          "message": "Code with id X deleted successfully."
+        }
+        ```
+    *   **Error Responses**:
+        *   `401 Unauthorized`: 未认证。
+        *   `403 Forbidden`: 尝试删除不属于自己的代码。
+        *   `404 Not Found`: 代码不存在。
+
+### 3.3 代码质量分析与评分 (可配置为需要认证)
 
 *   **URL**: `/api/analysis/{codeId}`
 *   **Method**: `POST`
+*   **Headers**: (如果配置为需要认证) `Authorization: Bearer <YOUR_JWT_TOKEN>`
 *   **Path Variable**:
-    *   `codeId`: (类型: Long) 需要分析的代码记录的 ID (来自上传接口返回的 `id`)。
+    *   `codeId`: (类型: Long) 需要分析的代码记录的 ID。
 *   **Request Body**: (无)
 *   **Success Response (200 OK)**:
     ```json
     {
       "id": 8, // 分析结果在数据库中的ID
-      "code": { // 关联的原始代码信息
+      "code": { // 关联的原始代码信息 (部分字段)
         "id": 2,
         "fileName": "Test.java",
-        "content": "public class Test {\n    // ... \n}",
+        // "content" 字段通常较大，可以考虑在此处省略或部分显示
         "uploadedAt": "2025-05-21T13:44:57.428722",
         "classCount": 1,
         "methodCount": 2,
@@ -127,24 +261,12 @@ CodeRater 是一个旨在帮助用户分析 Java 代码质量并提供反馈的�
     }
     ```
 *   **Error Responses**:
-    *   `400 Bad Request`: 如果 `codeId` 无效或对应的代码记录不存在。
-        ```json
-        {
-          "error": "Bad Request",
-          "message": "Code not found with id: 999"
-        }
-        ```
-    *   `500 Internal Server Error`: 如果分析过程中发生内部错误（如 Checkstyle 配置错误、解析失败等）。
-        ```json
-        {
-          "error": "Analysis Failed",
-          "message": "An error occurred during code analysis: [具体错误信息]"
-        }
-        ```
+    *   `400 Bad Request`: `codeId` 无效或对应的代码记录不存在。
+    *   `401 Unauthorized`: (如果配置为需要认证) 未认证。
+    *   `403 Forbidden`: (如果配置为需要认证且用户无权分析该代码，或代码不属于该用户)。
+    *   `500 Internal Server Error`: 分析过程中发生内部错误。
 
-### 3.3 评分指标详解
-
-分析结果中的评分相关字段含义如下：
+### 3.4 评分指标详解
 
 *   **`styleIssueCount` (代码风格问题数量)**:
     *   **含义**: Checkstyle 根据 `src/main/resources/checkstyle.xml` 配置文件检查出的代码风格问题的总数。
@@ -192,25 +314,24 @@ CodeRater 是一个旨在帮助用户分析 Java 代码质量并提供反馈的�
 
 ## 4. 项目结构
 
-```
+
 coderater/
-├── src/main/java/com/se/coderater/  # Java源代码根目录 (包名根据实际情况调整)
-│   ├── config/                    # 配置类 (SecurityConfig.java)
-│   ├── controller/                # API 控制器 (CodeController.java, AnalysisController.java)
-│   ├── dto/                       # 数据传输对象 (如果需要)
-│   ├── entity/                    # JPA 实体类 (Code.java, Analysis.java)
-│   ├── exception/                 # 自定义异常和全局异常处理器 (待实现)
-│   ├── repository/                # JPA 仓库接口 (CodeRepository.java, AnalysisRepository.java)
-│   ├── security/                  # Spring Security 相关 (JWT工具类等，待实现)
-│   └── service/                   # 业务逻辑服务 (CodeService.java, AnalysisService.java)
+├── src/main/java/com/se/coderater/ # Java源代码根目录
+│ ├── config/ # 配置类 (SecurityConfig.java, DataInitializer.java - 可选)
+│ ├── controller/ # API 控制器 (AuthController.java, CodeController.java, AnalysisController.java)
+│ ├── dto/ # 数据传输对象 (RegisterRequest.java, LoginRequest.java, AuthResponse.java)
+│ ├── entity/ # JPA 实体类 (User.java, Code.java, Analysis.java)
+│ ├── exception/ # 全局异常处理器 (GlobalExceptionHandler.java)
+│ ├── repository/ # JPA 仓库接口 (UserRepository.java, CodeRepository.java, AnalysisRepository.java)
+│ ├── security/ # Spring Security 相关 (JwtUtils.java, AuthTokenFilter.java, AuthEntryPointJwt.java)
+│ └── service/ # 业务逻辑服务 (AuthService.java, UserDetailsServiceImpl.java, CodeService.java, AnalysisService.java)
 ├── src/main/resources/
-│   ├── static/                    # 静态资源
-│   ├── templates/                 # 视图模板 (如果使用服务端渲染)
-│   ├── application.properties     # Spring Boot 配置文件 (数据库, JWT密钥等)
-│   └── checkstyle.xml             # Checkstyle 规则配置文件
-├── pom.xml                        # Maven 项目配置文件
-└── README.md                      # 本文档
-```
+│ ├── static/ # 静态资源 (如果需要)
+│ ├── templates/ # 视图模板 (如果需要)
+│ ├── application.properties # Spring Boot 配置文件
+│ └── checkstyle.xml # Checkstyle 规则配置文件
+├── pom.xml # Maven 项目配置文件
+└── README.md # 本文档
 
 ## 5. Checkstyle 配置
 
@@ -218,18 +339,18 @@ coderater/
 
 ## 6. 后续开发计划 (参考)
 
-*   **用户认证与授权 (JWT)**: 实现用户注册、登录，并将代码上传和分析与用户关联。
-*   **完善错误处理**: 实现全局异常处理器。
-*   **输入验证**: 对API输入进行更严格的校验。
+*   **完善用户管理**:
+    *   获取当前用户信息 API (`/api/user/me`)。
+    *   修改用户信息（如密码）。
+    *   (可选) 管理员管理用户功能。
+*   **完善代码管理**:
+    *   允许用户修改代码内容（并重新触发解析和分析）。
+    *   代码分页查询。
+*   **完善错误处理和输入验证**。
 *   **单元测试与集成测试**: 提高代码覆盖率和系统稳定性。
 *   **前端对接**: 与前端团队协作完成整个应用。
 *   **部署**: 准备生产环境部署方案。
 
 ## 7. 协作
 
-可以直接点击仓库页面的 Fork 按钮，在自己的账号下创建仓库副本，将个人 Fork 克隆到本地，修改后推送到自己的远程仓库，如果想要合并到本仓库可以提交 Pull Request
-
----
-
-关于 API 接口，目前我们主要有两个核心的 `POST` 请求。如果后续添加用户相关的 GET, PUT, DELETE 等请求，也需要在这里补充。
-
+可以直接点击仓库页面的 Fork 按钮，在自己的账号下创建仓库副本，将个人 Fork 克隆到本地，修改后推送到自己的远程仓库，如果想要合并到本仓库可以提交 Pull Request。
