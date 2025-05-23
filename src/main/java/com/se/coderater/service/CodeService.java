@@ -11,25 +11,47 @@ import org.slf4j.Logger; // 用于日志记录
 import org.slf4j.LoggerFactory; // 用于日志记录
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.util.StringUtils;
-
+import com.se.coderater.entity.User; // 确保导入
+import com.se.coderater.repository.UserRepository; // 需要注入 UserRepository
+import org.springframework.security.core.Authentication; // 用于获取认证信息
+import org.springframework.security.core.context.SecurityContextHolder; // 用于获取当前安全上下文
+import org.springframework.security.core.userdetails.UsernameNotFoundException; // 用于用户未找到异常
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.security.access.AccessDeniedException; // 用于权限不足的异常
 
 @Service
 public class CodeService {
 
     private static final Logger logger = LoggerFactory.getLogger(CodeService.class); // 日志记录器
+    private final UserRepository userRepository; // 新增注入
     private final CodeRepository codeRepository;
 
     @Autowired
-    public CodeService(CodeRepository codeRepository) {
+    public CodeService(CodeRepository codeRepository, UserRepository userRepository) { // 修改构造函数
         this.codeRepository = codeRepository;
+        this.userRepository = userRepository; // 初始化
     }
 
+
+
     public Code storeFileAndParse(MultipartFile file) throws IOException, IllegalArgumentException {
-        // 1. 校验文件名和文件类型 (与之前 storeFile 方法一致)
+        // 1. 获取当前登录用户
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            // 如果没有认证用户，或者用户是匿名用户，则不允许上传
+            // 注意：如果接口本身是 permitAll()，这里可能需要调整逻辑或依赖于接口层面的认证检查
+            throw new IllegalStateException("User must be authenticated to upload code.");
+        }
+        String currentUsername = authentication.getName();
+        User currentUser = userRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + currentUsername + ". Cannot upload code."));
+        // 2. 校验文件名和文件类型 (与之前 storeFile 方法一致)
         String originalFileName = file.getOriginalFilename();
         if (originalFileName == null || originalFileName.isEmpty()) {
             throw new IllegalArgumentException("Uploaded file must have a name.");
@@ -42,15 +64,16 @@ public class CodeService {
             throw new IllegalArgumentException("Cannot upload an empty file.");
         }
 
-        // 2. 读取文件内容
+        // 3. 读取文件内容
         String content = new String(file.getBytes(), StandardCharsets.UTF_8);
 
-        // 3. 创建 Code 实体
+        // 4. 创建 Code 实体
         Code newCode = new Code();
         newCode.setFileName(originalFileName);
         newCode.setContent(content);
+        newCode.setUploader(currentUser); // 关联当前登录用户
 
-        // 4. 使用 JavaParser 解析代码
+        // 5. 使用 JavaParser 解析代码
         try {
             CompilationUnit cu = StaticJavaParser.parse(content);
 
@@ -87,7 +110,93 @@ public class CodeService {
         }
 
 
-        // 5. 保存到数据库
+        // 6. 保存到数据库
         return codeRepository.save(newCode);
     }
+    // CodeService.java
+// ...
+    public List<Code> getCodesForCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new IllegalStateException("User must be authenticated to view their codes.");
+        }
+        String currentUsername = authentication.getName();
+        // 使用 findByUploaderUsername 可以避免再次查询 User 对象
+        return codeRepository.findByUploaderUsername(currentUsername);
+    }
+
+    // 可选：根据 codeId 获取代码详情，并检查是否属于当前用户
+    public Optional<Code> getCodeByIdForCurrentUser(Long codeId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return Optional.empty(); // 或者抛出异常
+        }
+        String currentUsername = authentication.getName();
+        Optional<Code> codeOpt = codeRepository.findById(codeId);
+        if (codeOpt.isPresent() && codeOpt.get().getUploader().getUsername().equals(currentUsername)) {
+            return codeOpt;
+        }
+        return Optional.empty(); // 或者抛出 AccessDeniedException
+    }
+    @Transactional // 确保数据库操作的原子性
+    public void deleteCodeForCurrentUser(Long codeId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new IllegalStateException("User must be authenticated to delete code.");
+        }
+        String currentUsername = authentication.getName();
+
+        Code codeToDelete = codeRepository.findById(codeId)
+                .orElseThrow(() -> new IllegalArgumentException("Code not found with id: " + codeId));
+
+
+        // 权限校验：确保代码属于当前登录用户
+        if (!codeToDelete.getUploader().getUsername().equals(currentUsername)) {
+            logger.warn("User '{}' attempted to delete code '{}' owned by '{}'. Access denied.",
+                    currentUsername, codeId, codeToDelete.getUploader().getUsername());
+            throw new AccessDeniedException("You do not have permission to delete this code.");
+        }
+
+        // 如果有关联的 Analysis 记录，也需要考虑如何处理。
+        // 1. 级联删除：如果 Code 和 Analysis 之间设置了 CascadeType.REMOVE 或 ALL，JPA 会自动删除。
+        // 2. 手动删除：如果 Analysis 与 Code 的关联不是级联删除，且 Analysis 记录依赖 Code，
+        //    你可能需要先手动删除 Analysis 记录，或者确保数据库外键设置了 ON DELETE CASCADE。
+        //    假设我们已经在 Code 实体中对 Analysis 设置了级联删除 (e.g., @OneToOne(mappedBy = "code", cascade = CascadeType.ALL))
+        //    或者 Analysis 实体中对 Code 的引用允许 Code 被删除。
+
+        codeRepository.delete(codeToDelete);
+        logger.info("User '{}' successfully deleted code with id: {}", currentUsername, codeId);
+    }
+    @Transactional
+    public Code updateCodeFileNameForCurrentUser(Long codeId, String newFileName) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new IllegalStateException("User must be authenticated to update code.");
+        }
+        String currentUsername = authentication.getName();
+
+        Code codeToUpdate = codeRepository.findById(codeId)
+                .orElseThrow(() -> new IllegalArgumentException("Code not found with id: " + codeId));
+
+        // 权限校验
+        if (!codeToUpdate.getUploader().getUsername().equals(currentUsername)) {
+            logger.warn("User '{}' attempted to update code '{}' owned by '{}'. Access denied.",
+                    currentUsername, codeId, codeToUpdate.getUploader().getUsername());
+            throw new AccessDeniedException("You do not have permission to update this code.");
+        }
+
+        // 校验新文件名 (例如，不能为空，必须以 .java 结尾)
+        if (newFileName == null || newFileName.trim().isEmpty()) {
+            throw new IllegalArgumentException("New file name cannot be empty.");
+        }
+        if (!newFileName.trim().toLowerCase().endsWith(".java")) {
+            throw new IllegalArgumentException("File name must end with .java");
+        }
+
+        codeToUpdate.setFileName(newFileName.trim());
+        Code updatedCode = codeRepository.save(codeToUpdate);
+        logger.info("User '{}' successfully updated file name for code id: {} to '{}'", currentUsername, codeId, newFileName);
+        return updatedCode;
+    }
+// ...
 }

@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonBackReference; // 用于处理序列化时的循环引用
 
 @Entity
 @Table(name = "codes") // 表名 codes
@@ -17,10 +18,11 @@ public class Code {
     @GeneratedValue(strategy = GenerationType.IDENTITY) // 主键自增
     private Long id;
 
-    // 暂时注释掉用户关联，因为我们先不做用户模块
-    // @ManyToOne
-    // @JoinColumn(name = "user_id", nullable = false)
-    // private User uploader;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
+    @JsonBackReference
+    private User uploader;
 
     @Column(nullable = false)
     private String fileName; // 文件名
@@ -36,9 +38,9 @@ public class Code {
     private Integer methodCount;   // 方法数量
     private Integer lineCount;     // 代码行数 (不含空行和注释的有效行数，或总行数，根据需求定)
 
-    // 关系映射: 一个代码对应一个分析结果 (如果 Analysis 实体也创建了)
-    // @OneToOne(mappedBy = "code", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    // private Analysis analysis;
+
+    @OneToOne(mappedBy = "code", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Analysis analysis;
 
     @PrePersist // JPA 回调方法，在实体持久化之前执行
     protected void onCreate() {
