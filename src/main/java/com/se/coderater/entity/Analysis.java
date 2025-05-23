@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import java.time.LocalDateTime;
 import jakarta.persistence.Transient;
+import com.fasterxml.jackson.annotation.JsonBackReference; // 导入
 // import java.util.List; // 如果要存储详细的Checkstyle问题列表
 
 @Entity
@@ -19,9 +20,11 @@ public class Analysis {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY) // 使用 LAZY 获取，避免不必要的 Code 加载
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "code_id", nullable = false, unique = true)
-    private Code code; // 关联的代码实体
+    @JsonBackReference("code-analysis") // 使用与 Code 中 @JsonManagedReference 相同的名字
+    private Code code;
+
 
     // Checkstyle 相关
     private Integer styleIssueCount; // Checkstyle 发现的问题总数

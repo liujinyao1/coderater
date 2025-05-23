@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-
+import com.fasterxml.jackson.annotation.JsonManagedReference; // 导入
 import java.util.Collection;
 import java.util.HashSet; // 用于存储角色
 import java.util.Set;    // 用于存储角色
@@ -97,6 +97,7 @@ public class User implements UserDetails { // 实现 UserDetails 接口
     // cascade = CascadeType.ALL: 当删除用户时，也删除其所有代码 (根据需求决定，也可以是 CascadeType.PERSIST, MERGE 等，或者不级联删除)
     // fetch = FetchType.LAZY: 默认，当加载 User 时，不立即加载其 codes 集合，只有在实际访问 codes 时才加载
     @OneToMany(mappedBy = "uploader", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonManagedReference("user-codes") // 给引用起个名字，与 Code 中的 @JsonBackReference 对应
     private Set<Code> codes = new HashSet<>();
     // 构造函数 (方便创建用户)
     public User(String username, String email, String password) {

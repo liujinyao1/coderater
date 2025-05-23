@@ -6,7 +6,8 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import java.time.LocalDateTime;
 import com.fasterxml.jackson.annotation.JsonBackReference; // 用于处理序列化时的循环引用
-
+import com.fasterxml.jackson.annotation.JsonManagedReference; // 导入
+import com.fasterxml.jackson.annotation.JsonIgnore;
 @Entity
 @Table(name = "codes") // 表名 codes
 @Data // Lombok: 自动生成 getter, setter, toString, equals, hashCode
@@ -19,9 +20,9 @@ public class Code {
     private Long id;
 
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    @JsonBackReference
+    @JsonBackReference("user-codes") // 使用与 User 中 @JsonManagedReference 相同的名字
     private User uploader;
 
     @Column(nullable = false)
@@ -40,6 +41,8 @@ public class Code {
 
 
     @OneToOne(mappedBy = "code", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonManagedReference("code-analysis") // 新的引用名
+    @JsonIgnore // 在序列化 Code 对象时，完全忽略 analysis 字段
     private Analysis analysis;
 
     @PrePersist // JPA 回调方法，在实体持久化之前执行

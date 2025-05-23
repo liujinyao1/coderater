@@ -19,6 +19,8 @@ import org.springframework.data.domain.Page; // 导入 Page
 import org.springframework.data.domain.Pageable; // 导入 Pageable
 import org.springframework.data.web.PageableDefault; // 可选，用于设置默认分页参数
 import com.se.coderater.dto.CodeSummaryDTO; // 导入 DTO
+import com.se.coderater.dto.UpdateCodeRequest; // 导入新的 DTO
+import jakarta.validation.Valid; // 用于校验请求体
 @RestController
 @RequestMapping("/api/code")
 public class CodeController {
@@ -109,7 +111,7 @@ public class CodeController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
         }
     }
-    @PutMapping("/{codeId}/filename") // 使用 PUT 请求更新资源
+    /*@PutMapping("/{codeId}/filename") // 使用 PUT 请求更新资源
     public ResponseEntity<?> updateCodeFileName(
             @PathVariable Long codeId,
             @RequestParam @NotBlank String newFileName) { // 直接用 @RequestParam 获取新文件名
@@ -132,7 +134,7 @@ public class CodeController {
             errorResponse.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
         }
-    }
+    }*/
 
 
     @DeleteMapping("/{codeId}")
@@ -166,6 +168,36 @@ public class CodeController {
         // 例如：每页10条，按上传时间倒序排列
         Page<CodeSummaryDTO> codeSummaries = codeService.getPublicCodeSummaries(pageable);
         return ResponseEntity.ok(codeSummaries);
+    }
+    @PutMapping("/{codeId}") // 使用 PUT 请求更新整个代码资源（文件名和内容）
+    public ResponseEntity<?> updateCodeDetails(
+            @PathVariable Long codeId,
+            @Valid @RequestBody UpdateCodeRequest updateCodeRequest) { // 接收 DTO 并校验
+        try {
+            Code updatedCode = codeService.updateCodeDetailsForCurrentUser(
+                    codeId,
+                    updateCodeRequest.getFileName(),
+                    updateCodeRequest.getContent()
+            );
+            return ResponseEntity.ok(updatedCode);
+        } catch (IllegalArgumentException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Bad Request");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (AccessDeniedException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Forbidden");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+        } catch (IllegalStateException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Authentication Required");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+        }
+        // 注意：如果 UpdateCodeRequest 的 @Valid 校验失败，
+        // GlobalExceptionHandler 会处理 MethodArgumentNotValidException 并返回 400
     }
 // ...
 }

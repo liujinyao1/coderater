@@ -5,6 +5,8 @@ import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.se.coderater.entity.Analysis;
+import com.se.coderater.repository.AnalysisRepository;
 import com.se.coderater.entity.Code;
 import com.se.coderater.repository.CodeRepository;
 import org.slf4j.Logger; // 用于日志记录
@@ -21,6 +23,7 @@ import org.springframework.security.core.context.SecurityContextHolder; // 用�
 import org.springframework.security.core.userdetails.UsernameNotFoundException; // 用于用户未找到异常
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.security.access.AccessDeniedException; // 用于权限不足的异常
@@ -175,7 +178,7 @@ public class CodeService {
         codeRepository.delete(codeToDelete);
         logger.info("User '{}' successfully deleted code with id: {}", currentUsername, codeId);
     }
-    @Transactional
+    /*@Transactional
     public Code updateCodeFileNameForCurrentUser(Long codeId, String newFileName) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
@@ -205,7 +208,7 @@ public class CodeService {
         Code updatedCode = codeRepository.save(codeToUpdate);
         logger.info("User '{}' successfully updated file name for code id: {} to '{}'", currentUsername, codeId, newFileName);
         return updatedCode;
-    }
+    }*/
     public Page<CodeSummaryDTO> getPublicCodeSummaries(Pageable pageable) {
         Page<Code> codePage = codeRepository.findAll(pageable); // 获取分页的 Code 实体
 
@@ -217,6 +220,61 @@ public class CodeService {
                 code.getUploadedAt(),
                 code.getLineCount()
         ));
+    }
+    @Transactional
+    public Code updateCodeDetailsForCurrentUser(Long codeId, String newFileName, String newContent) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new IllegalStateException("User must be authenticated to update code.");
+        }
+        String currentUsername = authentication.getName();
+
+        Code codeToUpdate = codeRepository.findById(codeId)
+                .orElseThrow(() -> new IllegalArgumentException("Code not found with id: " + codeId));
+
+        // 权限校验
+        if (!codeToUpdate.getUploader().getUsername().equals(currentUsername)) {
+            logger.warn("User '{}' attempted to update code '{}' owned by '{}'. Access denied.",
+                    currentUsername, codeId, codeToUpdate.getUploader().getUsername());
+            throw new AccessDeniedException("You do not have permission to update this code.");
+        }
+
+        // 校验新文件名和内容
+        if (newFileName == null || newFileName.trim().isEmpty()) {
+            throw new IllegalArgumentException("New file name cannot be empty.");
+        }
+        if (!newFileName.trim().toLowerCase().endsWith(".java")) {
+            throw new IllegalArgumentException("File name must end with .java");
+        }
+        if (newContent == null || newContent.isEmpty()) {
+            throw new IllegalArgumentException("Code content cannot be empty.");
+        }
+
+        // 更新文件名和内容
+        codeToUpdate.setFileName(newFileName.trim());
+        codeToUpdate.setContent(newContent);
+        codeToUpdate.setUploadedAt(LocalDateTime.now()); // 手动更新时间
+
+        // **重新解析新的代码内容，并更新 Code 实体的统计字段**
+        try {
+            CompilationUnit cu = StaticJavaParser.parse(newContent);
+            codeToUpdate.setClassCount(cu.findAll(com.github.javaparser.ast.body.ClassOrInterfaceDeclaration.class).size());
+            codeToUpdate.setMethodCount(cu.findAll(com.github.javaparser.ast.body.MethodDeclaration.class).size());
+            codeToUpdate.setLineCount((int) newContent.lines().filter(line -> !line.trim().isEmpty()).count());
+            logger.info("Re-parsed content for codeId: {} after update. Counts: Class={}, Method={}, Line={}",
+                    codeId, codeToUpdate.getClassCount(), codeToUpdate.getMethodCount(), codeToUpdate.getLineCount());
+        } catch (Exception e) {
+            logger.error("Failed to re-parse updated Java content for codeId: {}. Setting counts to null. Reason: {}", codeId, e.getMessage());
+            // 如果解析失败，将统计数据设为 null 或 0，以表示当前内容无法解析
+            codeToUpdate.setClassCount(null);
+            codeToUpdate.setMethodCount(null);
+            codeToUpdate.setLineCount(null);
+        }
+
+
+        Code updatedCode = codeRepository.save(codeToUpdate);
+        logger.info("User '{}' successfully updated details (content and stats) for code id: {}", currentUsername, codeId);
+        return updatedCode;
     }
 // ...
 }
