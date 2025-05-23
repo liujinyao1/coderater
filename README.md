@@ -355,7 +355,7 @@ coderater/
 ├── src/main/java/com/se/coderater/ # Java源代码根目录
 │ ├── config/ # 配置类 (SecurityConfig.java, DataInitializer.java - 可选)
 │ ├── controller/ # API 控制器 (AuthController.java, CodeController.java, AnalysisController.java, UserController.java)
-│ ├── dto/ # 数据传输对象 (RegisterRequest.java, LoginRequest.java, AuthResponse.java, CodeSummaryDTO.java, UserProfileDTO.java)
+│ ├── dto/ # 数据传输对象 (RegisterRequest.java, LoginRequest.java, AuthResponse.java, CodeSummaryDTO.java, UserProfileDTO.java,UpdateCodeRequest.java)
 │ ├── entity/ # JPA 实体类 (User.java, Code.java, Analysis.java)
 │ ├── exception/ # 全局异常处理器 (GlobalExceptionHandler.java)
 │ ├── repository/ # JPA 仓库接口 (UserRepository.java, CodeRepository.java, AnalysisRepository.java)
