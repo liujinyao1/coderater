@@ -228,25 +228,25 @@ CodeRater 是一个旨在帮助用户分析 Java 代码质量并提供反馈的�
     *   **Headers**: `Authorization: Bearer <YOUR_JWT_TOKEN>`
     *   **Path Variable**: `codeId` (类型: Long) - 需要修改的代码记录的 ID。
     *   **Request Body**:
-  ```json
-  {
-    "fileName": "UpdatedDemo.java",
-    "content": "public class UpdatedDemo {\n    public static void main(String[] args) {\n        System.out.println(\"Content has been updated!\");\n    }\n}"
-  }
-  ```
+        ```json
+        {
+         "fileName": "UpdatedDemo.java",
+         "content": "public class UpdatedDemo {\n    public static void main(String[] args) {\n        System.out.println(\"Content has been updated!\");\n    }\n}"
+        }
+        ```
 
-*   **Success Response (200 OK)**:
-  ```json
-  {
-    "id": 2,
-    "fileName": "UpdatedContentAndName.java",
-    "content": "public class UpdatedContent {\n  // new simple content\n}",
-    "uploadedAt": "2025-05-23T23:03:27.321785",
-    "classCount": 1,
-    "methodCount": 0,
-    "lineCount": 3
-  }
-  ```
+    *   **Success Response (200 OK)**:
+        ```json
+        {
+           "id": 2,
+           "fileName": "UpdatedContentAndName.java",
+           "content": "public class UpdatedContent {\n  // new simple content\n}",
+           "uploadedAt": "2025-05-23T23:03:27.321785",
+           "classCount": 1,
+           "methodCount": 0,
+           "lineCount": 3
+        }
+       ```
 *   **Error Responses**: `401 Unauthorized`, `403 Forbidden` (非代码所有者), `404 Not Found` (代码不存在),`500 Internal Server Error`(服务器内部错误,例如,重新解析新代码内容时发生意外）
 *   **删除代码 (仅限自己的代码)**
     *   **URL**: `/api/code/{codeId}`
