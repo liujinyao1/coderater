@@ -24,7 +24,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.security.access.AccessDeniedException; // 用于权限不足的异常
-
+import com.se.coderater.dto.CodeSummaryDTO; // 导入 DTO
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 @Service
 public class CodeService {
 
@@ -129,14 +131,20 @@ public class CodeService {
     public Optional<Code> getCodeByIdForCurrentUser(Long codeId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
-            return Optional.empty(); // 或者抛出异常
+            throw new IllegalStateException("User must be authenticated to view this code."); // 或者返回 Optional.empty()
         }
         String currentUsername = authentication.getName();
+
         Optional<Code> codeOpt = codeRepository.findById(codeId);
-        if (codeOpt.isPresent() && codeOpt.get().getUploader().getUsername().equals(currentUsername)) {
-            return codeOpt;
+        if (codeOpt.isPresent()) {
+            if (codeOpt.get().getUploader().getUsername().equals(currentUsername)) {
+                return codeOpt; // 用户是所有者，返回代码
+            } else {
+                // 用户不是所有者，抛出 AccessDeniedException
+                throw new AccessDeniedException("You do not have permission to view this code.");
+            }
         }
-        return Optional.empty(); // 或者抛出 AccessDeniedException
+        return Optional.empty(); // 代码本身未找到
     }
     @Transactional // 确保数据库操作的原子性
     public void deleteCodeForCurrentUser(Long codeId) {
@@ -197,6 +205,18 @@ public class CodeService {
         Code updatedCode = codeRepository.save(codeToUpdate);
         logger.info("User '{}' successfully updated file name for code id: {} to '{}'", currentUsername, codeId, newFileName);
         return updatedCode;
+    }
+    public Page<CodeSummaryDTO> getPublicCodeSummaries(Pageable pageable) {
+        Page<Code> codePage = codeRepository.findAll(pageable); // 获取分页的 Code 实体
+
+        // 将 Page<Code> 转换为 Page<CodeSummaryDTO>
+        return codePage.map(code -> new CodeSummaryDTO(
+                code.getId(),
+                code.getFileName(),
+                code.getUploader() != null ? code.getUploader().getUsername() : "Unknown", // 处理 uploader 可能为 null 的情况
+                code.getUploadedAt(),
+                code.getLineCount()
+        ));
     }
 // ...
 }

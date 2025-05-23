@@ -3,6 +3,7 @@ package com.se.coderater.controller;
 import com.se.coderater.entity.Code;
 import com.se.coderater.service.CodeService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -14,6 +15,10 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import jakarta.validation.constraints.NotBlank; // 用于请求参数校验
+import org.springframework.data.domain.Page; // 导入 Page
+import org.springframework.data.domain.Pageable; // 导入 Pageable
+import org.springframework.data.web.PageableDefault; // 可选，用于设置默认分页参数
+import com.se.coderater.dto.CodeSummaryDTO; // 导入 DTO
 @RestController
 @RequestMapping("/api/code")
 public class CodeController {
@@ -97,6 +102,11 @@ public class CodeController {
             errorResponse.put("error", "Authentication Required");
             errorResponse.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+        }catch (AccessDeniedException e) { // 明确处理权限不足
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Forbidden");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
         }
     }
     @PutMapping("/{codeId}/filename") // 使用 PUT 请求更新资源
@@ -147,6 +157,15 @@ public class CodeController {
             errorResponse.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
         }
+    }
+    // API: 获取所有已上传代码的摘要分页列表
+    @GetMapping("/public/list") // 使用一个更明确的路径，例如 /public/list 或直接 /codes
+    public ResponseEntity<Page<CodeSummaryDTO>> getAllPublicCodeSummaries(
+            @PageableDefault(size = 10, sort = "uploadedAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        // @PageableDefault 可以设置默认的分页大小和排序规则
+        // 例如：每页10条，按上传时间倒序排列
+        Page<CodeSummaryDTO> codeSummaries = codeService.getPublicCodeSummaries(pageable);
+        return ResponseEntity.ok(codeSummaries);
     }
 // ...
 }

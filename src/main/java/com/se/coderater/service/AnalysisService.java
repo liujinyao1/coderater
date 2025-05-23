@@ -22,7 +22,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource; // 用于加载 classpath 下的资源
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // 推荐在服务层方法上使用事务
-
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.AccessDeniedException; // 用于权限不足的异常
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -69,8 +71,25 @@ public class AnalysisService {
 
     @Transactional // 建议将涉及数据库修改的操作放在事务中
     public Analysis analyzeCode(Long codeId) throws IOException, CheckstyleException {
+        // 1. 获取当前登录用户
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            // 如果 SecurityConfig 中对应的路径已经是 .authenticated()，理论上这里不会是匿名用户
+            // 但作为额外的防御性编程是好的
+            throw new IllegalStateException("User must be authenticated to analyze code.");
+        }
+        String currentUsername = authentication.getName();
+
+        // 2. 获取 Code 实体
         Code code = codeRepository.findById(codeId)
                 .orElseThrow(() -> new IllegalArgumentException("Code not found with id: " + codeId));
+
+        // 3. **这就是所有权校验逻辑**
+        if (!code.getUploader().getUsername().equals(currentUsername)) {
+            logger.warn("User '{}' attempted to analyze code '{}' owned by '{}'. Access denied.",
+                    currentUsername, codeId, code.getUploader().getUsername());
+            throw new AccessDeniedException("You do not have permission to analyze this code."); // 抛出 AccessDeniedException
+        }
 
         // 创建临时文件来运行 Checkstyle
         Path tempFilePath = null;

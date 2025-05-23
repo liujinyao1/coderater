@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.security.access.AccessDeniedException; // 确保导入
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,7 +32,17 @@ public class AnalysisController {
             errorResponse.put("error", "Bad Request");
             errorResponse.put("message", e.getMessage());
             return ResponseEntity.badRequest().body(errorResponse);
-        } catch (Exception e) { // 包括 IOException, CheckstyleException 等
+        }catch (IllegalStateException e) { // 例如用户未认证 (由 Service 层抛出)
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Authentication Required");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+        } catch (AccessDeniedException e) { // 权限不足 (由 Service 层抛出)
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Forbidden");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+        }catch (Exception e) { // 包括 IOException, CheckstyleException 等
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("error", "Analysis Failed");
             errorResponse.put("message", "An error occurred during code analysis: " + e.getMessage());
